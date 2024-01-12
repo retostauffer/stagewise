@@ -1,0 +1,9 @@
+
+
+# Package/modified package
+/sdr
+
+# Singularity container (sandbox and build)
+/ssdr
+/ssdr.sif
+

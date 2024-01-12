@@ -1,0 +1,45 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+## Mount point for HPC scratch and 'data' dir for custom software
+%setup
+  mkdir $SINGULARITY_ROOTFS/scratch
+  mkdir $SINGULARITY_ROOTFS/data
+  mkdir -p $SINGULARITY_ROOTFS/data/R-lib
+
+## Copy files
+%files
+  singularity_sdr.def /data/singularity_sdr.def
+  singularity_sdr.R   /data/singularity_sdr.R
+  ## Copy custom sdr data into /data/ for installation (singularity_sdr.R)
+  /home/retos/Software/stagewise/sdr /data
+
+## Post start installation
+%post
+  export LC_ALL=C.UTF-8
+  export DEBIAN_FRONTEND=noninteractive
+
+  ln -fs /usr/share/zoneinfo/Europe/Vienna /etc/localtime
+  apt-get update
+  apt-get -y upgrade
+
+  apt install -y vim
+  apt install -y libgdal-dev libproj-dev libudunits2-dev
+  apt install -y r-base
+  apt install -y libcoin-dev
+
+  ## Try to avoid using default lib paths
+  export R_LIBS_USER=$SINGULARITY_ROOTFS/data/R-lib:$R_LIBS_USER
+
+  Rscript /data/singularity_sdr.R
+
+%environment
+  export LANG=C.UTF-8
+  export PATH=/data/bin:$PATH
+
+  ## Try to avoid using default lib paths
+  export R_LIBS_USER=$SINGULARITY_ROOTFS/data/R-lib:$R_LIBS_USER
+
+
+
+

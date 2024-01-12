@@ -1,0 +1,19 @@
+#!/bin/bash
+
+
+SIF="ssdr.sif"
+if [ ! -f ${SIF} ] ; then
+	printf "Cannot find singularity container \"%s\"" "${SIF}"
+	exit 667
+fi
+
+# Bind directory
+export SINGULARITY_BIND="/home/retos/Software/stagewise:/stagewise"
+
+
+# Call singularity
+singularity exec ${SIF} /bin/bash <<-EOF
+cd /stagewise && \
+Rscript test.R
+EOF
+
