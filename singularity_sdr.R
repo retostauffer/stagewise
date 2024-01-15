@@ -16,6 +16,7 @@ install.packages("pkgdown")
 install.packages("devtools")
 
 ## CRAN
+install.packages("argparse")
 install.packages("gamlss.dist")
 install.packages("Formula")
 install.packages("Matrix")
