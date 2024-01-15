@@ -39,8 +39,8 @@ xxx <- get_testdata(args$nobs, args$p, args$ff)
 ## and best subset updating.
 t <- Sys.time()
 set.seed(666)
-library("peakRAM")
-pk <- peakRAM({
+#library("peakRAM")
+#pk <- peakRAM({
     b <- sdr(formula   = xxx$formula,
              data      = xxx$data,
              CF        = TRUE,
@@ -48,7 +48,7 @@ pk <- peakRAM({
              family    = NO,
              batch_ids = args$batchsize,
              maxit     = args$maxit)
-})
+#})
 t <- as.numeric(Sys.time() - t, units = "mins")
 message("\n\nFull estimation took me ", round(t, 2), " minutes in total")
 
