@@ -23,8 +23,18 @@ From: ubuntu:22.04
   apt-get update
   apt-get -y upgrade
 
+  # For pkgdown, needed for devtools (curl, pkgdown, ...)
+  apt install -y libfontconfig-dev
+  apt install -y libharfbuzz-dev  libfribidi-dev
+  apt install -y openssl
+  apt install -y libcurl4 libcurl4-nss-dev
+  apt install -y libxml2-dev
+  apt install -y libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+
+  # I need this
   apt install -y vim
-  apt install -y libgdal-dev libproj-dev libudunits2-dev
+
+  # R-base and libcoin
   apt install -y r-base
   apt install -y libcoin-dev
 

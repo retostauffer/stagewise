@@ -9,8 +9,13 @@ local({
   options(repos = r)
 })
 
-## CRAN
+# Devtools
+install.packages("systemfonts")
+install.packages("textshaping")
+install.packages("pkgdown")
 install.packages("devtools")
+
+## CRAN
 install.packages("gamlss.dist")
 install.packages("Formula")
 install.packages("Matrix")

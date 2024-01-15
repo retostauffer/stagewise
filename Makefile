@@ -21,6 +21,7 @@ clean:
 ##export SINGULARITY_BIND="/scratch/c4031021/foehnreconstruction_git:/foehn"
 ##cd /foehn && \
 
+.PHONY: run
 run:
 	./run
 	singularity exec ssdr.sif Rscript test.R
