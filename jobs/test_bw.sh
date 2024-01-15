@@ -6,8 +6,8 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --output=slurm-%x-%j_%a.out
 #SBATCH --error=slurm-%x-%j_%a.err
-#SBATCH --time=0:05:00
-#SBATCH --mem-per-cpu=4G
+#SBATCH --time=0:10:00
+#SBATCH --mem-per-cpu=2G
 
 if [ !$# -eq 1 ] ; then
     printf "There must be one input argument (number of batches)"
@@ -33,6 +33,7 @@ export SINGULARITY_BIND="/home/c403/c4031021/stagewise:/stagewise"
 # Call singularity
 singularity exec ${SIF} /bin/bash <<-EOF
 cd /stagewise && \
-Rscript test_bw.R --batches ${BATCHES}
+Rscript test_bw.R
 EOF
 
+#Rscript test_bw.R --batches ${BATCHES}
