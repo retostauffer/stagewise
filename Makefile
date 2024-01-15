@@ -26,3 +26,4 @@ run:
 	./run
 	singularity exec ssdr.sif Rscript test.R
 
+
