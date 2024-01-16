@@ -12,9 +12,11 @@ parser$add_argument("-p", type = "integer", default = 1e2,
                     help = "Number of parameters (covariates), defaults to 1e2")
 parser$add_argument("--ff", action = "store_true",
                     help = "Should ff be used (ffdf instead of data.frame)?")
+parser$add_argument("--noquick", action = "store_false", dest = "quick_ffdf",
+                    help = "Should quick_ffdf NOT be used (data set is model frame)")
 
 args <- parser$parse_args()
-print(args)
+print(str(args))
 if (is.null(args$batchsize)) {
     args$print_help()
     stop("-b/--batchsize missing")
@@ -39,16 +41,17 @@ xxx <- get_testdata(args$nobs, args$p, args$ff)
 ## and best subset updating.
 t <- Sys.time()
 set.seed(666)
-#library("peakRAM")
-#pk <- peakRAM({
+library("peakRAM")
+pk <- peakRAM({
     b <- sdr(formula   = xxx$formula,
              data      = xxx$data,
              CF        = TRUE,
              updating  = "bs",
              family    = NO,
              batch_ids = args$batchsize,
-             maxit     = args$maxit)
-#})
+             maxit     = args$maxit,
+             quick_ffdf = args$quick_ffdf)
+})
 t <- as.numeric(Sys.time() - t, units = "mins")
 message("\n\nFull estimation took me ", round(t, 2), " minutes in total")
 

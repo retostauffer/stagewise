@@ -5,6 +5,8 @@ library("sdr")
 set.seed(666)
 nobs <- 1e6
 p    <- 1e3
+#nobs <- 1e6
+#p    <- 1e3
 d    <- matrix(runif(nobs * p, -1, 1), ncol = p)
 
 colnames(d) <- paste("x", 1:p, sep = "")
@@ -21,6 +23,16 @@ d$y <- rNO(nobs, mu = d$eta.mu,
 ## Model formula.
 f <- as.formula(paste("y ~ ", paste0("x", 1:p, collapse = "+")))
 f <- list(f, update(f, sigma ~ .))
+
+## Standardize (for quick_ffdf)
+idx <- grep("^x[0-9]+$", names(d))
+for (i in idx) d[[i]] <- (d[[i]] - mean(d[[i]])) / sd(d[[i]])
+round(sapply(d[, idx], mean), 10)
+round(sapply(d[, idx], sd), 3)
+
+## Remove mu and sigma (quick_ffdf)
+d$eta.mu <- NULL
+d$eta.sigma <- NULL
 
 
 fformat <- function(x) {

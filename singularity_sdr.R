@@ -14,6 +14,7 @@ install.packages("systemfonts")
 install.packages("textshaping")
 install.packages("pkgdown")
 install.packages("devtools")
+install.packages("peakRAM")
 
 ## CRAN
 install.packages("argparse")
