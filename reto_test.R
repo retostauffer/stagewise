@@ -14,6 +14,8 @@ parser$add_argument("--ff", action = "store_true",
                     help = "Should ff be used (ffdf instead of data.frame)?")
 parser$add_argument("--noquick", action = "store_false", dest = "quick_ffdf",
                     help = "Should quick_ffdf NOT be used (data set is model frame)")
+parser$add_argument("-o", "--original", action = "store_true",
+                    help = "Should the original sdr package be used?")
 
 args <- parser$parse_args()
 print(str(args))
@@ -31,7 +33,11 @@ if (args$maxit < 5) stop("-m/--maxit must be 5 or larger")
 # Re-loading the package (for development purposes)
 message("Loading sdr package via devtools")
 library("devtools")
-load_all("sdr")
+if (args$original) {
+    load_all("sdrorig")
+} else {
+    load_all("sdr")
+}
 
 message("Sourcing testfunctions (to load test data)")
 source("testfunctions.R")
