@@ -31,7 +31,7 @@ if (args$maxit < 5) stop("-m/--maxit must be 5 or larger")
 
 
 # Re-loading the package (for development purposes)
-message("Loading sdr package via devtools")
+cat("Loading sdr package via devtools\n")
 library("devtools")
 if (args$original) {
     load_all("sdrorig")
@@ -39,15 +39,20 @@ if (args$original) {
     load_all("sdr")
 }
 
-message("Sourcing testfunctions (to load test data)")
+cat("Sourcing testfunctions (to load test data)\n")
 source("testfunctions.R")
+t <- Sys.time()
+cat("Loading testdata with p = ", args$p, " and ff = ", args$ff, "\n")
 xxx <- get_testdata(args$nobs, args$p, args$ff)
+t <- as.numeric(Sys.time() - t, units = "mins")
+cat("\n\nJust reading the test data took ", round(t, 2), " minutes\n")
 
 ## Variable selection with correlation filtering
 ## and best subset updating.
 t <- Sys.time()
 set.seed(666)
 library("peakRAM")
+cat("Calling sdr now ...\n")
 pk <- peakRAM({
     b <- sdr(formula   = xxx$formula,
              data      = xxx$data,
@@ -59,7 +64,7 @@ pk <- peakRAM({
              quick_ffdf = args$quick_ffdf)
 })
 t <- as.numeric(Sys.time() - t, units = "mins")
-message("\n\nFull estimation took me ", round(t, 2), " minutes in total")
+cat("\n\nFull estimation took me ", round(t, 2), " minutes in total\n")
 
 cat("\n\n")
 print(pk)

@@ -4,7 +4,7 @@ library("sdr")
 
 set.seed(666)
 nobs <- 1e6
-p    <- 800
+p    <- 1000
 d    <- matrix(runif(nobs * p, -1, 1), ncol = p)
 
 colnames(d) <- paste("x", 1:p, sep = "")

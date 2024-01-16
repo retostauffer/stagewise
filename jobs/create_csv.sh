@@ -6,7 +6,7 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --output=slurm-%x-%j_%a.out
 #SBATCH --error=slurm-%x-%j_%a.err
-#SBATCH --time=0:30:00
+#SBATCH --time=00:30:00
 #SBATCH --mem-per-cpu=24G
 
 # Must be started outside this folder! Checking if the

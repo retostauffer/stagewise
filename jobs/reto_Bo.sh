@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=retoB
+#SBATCH --job-name=retoBo
 #SBATCH --cpus-per-task=1
 #SBATCH --mail-user=Reto.Stauffer@uibk.ac.at
 #SBATCH --mail-type=END,FAIL
@@ -35,6 +35,6 @@ export SINGULARITY_BIND="/home/c403/c4031021/stagewise:/stagewise"
 # Call singularity
 singularity exec ${SIF} /bin/bash <<-EOF
 cd /stagewise && \
-Rscript reto_test.R -m 100 -n 1000000 -p 1000 --ff
+Rscript reto_test.R -m 100 -n 1000000 -p 1000 --ff -o
 EOF
 
