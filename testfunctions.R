@@ -14,12 +14,15 @@ get_testdata <- function(nobs, p, ff = FALSE, bigmem = FALSE) {
     if (ff & bigmem) warning("ff and bigmem are set TRUE, using bigmem")
 
     if (bigmem) {
+   	 cat(" - Reacing via bigmemory, read.big.matrix\n")
         require("bigmemory")
         d <- read.big.matrix(file, header = TRUE, skip = 4, type = "double")
     } else if (ff) {
+   	 cat(" - Reacing via ff, read.table.ffdf\n")
         require("ff")
         d <- read.table.ffdf(file = file, comment.char = "#", sep = ",", header = TRUE)
     } else {
+   	 cat(" - Reacing with read.csv\n")
         d <- read.csv(file, comment.char = "#")
     }
     # Reading meta
