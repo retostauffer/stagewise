@@ -12,6 +12,8 @@ parser$add_argument("-p", type = "integer", default = 1e2,
                     help = "Number of parameters (covariates), defaults to 1e2")
 parser$add_argument("--ff", action = "store_true",
                     help = "Should ff be used (ffdf instead of data.frame)?")
+parser$add_argument("--bigmem", action = "store_true",
+                    help = "Should bigmem be used (big.matrix instead of data.frame)?")
 parser$add_argument("--noquick", action = "store_false", dest = "quick_ffdf",
                     help = "Should quick_ffdf NOT be used (data set is model frame)")
 parser$add_argument("-o", "--original", action = "store_true",
@@ -43,9 +45,11 @@ cat("Sourcing testfunctions (to load test data)\n")
 source("testfunctions.R")
 t <- Sys.time()
 cat("Loading testdata with p = ", args$p, " and ff = ", args$ff, "\n")
-xxx <- get_testdata(args$nobs, args$p, args$ff)
+xxx <- get_testdata(args$nobs, args$p, args$ff, args$bigmem)
 t <- as.numeric(Sys.time() - t, units = "mins")
 cat("\n\nJust reading the test data took ", round(t, 2), " minutes\n")
+
+print(head(xxx$data[, 1:5]))
 
 ## Variable selection with correlation filtering
 ## and best subset updating.
