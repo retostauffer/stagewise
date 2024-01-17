@@ -13,6 +13,7 @@ Rcpp::List retoMat(std::string file, int skip = 0, int nrows = 3, bool header = 
 
     int ncol = 0, nrow = 0;
 
+    // Open file connection
     std::ifstream myfile(file.c_str());
     std::string line;
     std::string val;
@@ -74,10 +75,69 @@ Rcpp::List retoMat(std::string file, int skip = 0, int nrows = 3, bool header = 
 
     //Rcpp::List res = Rcpp::List::create(colnames);
     List rval = Rcpp::List::create(Named("file") = file,
-                                   Named("nrow") = ncol,
-                                   Named("ncol") = nrow,
+                                   Named("header") = header,
+                                   Named("skip") = skip,
+                                   Named("nrow") = nrow,
+                                   Named("ncol") = ncol,
                                    Named("colnames") = colnames);
     return rval;
 }
 
+
+// [[Rcpp::export]]
+Rcpp::List retoMatMean(const List & X) {
+
+    int ncol = as<int>(X["ncol"]);
+    int nrow = as<int>(X["nrow"]);
+    int skip = as<int>(X["skip"]);
+    bool header = as<bool>(X["header"]);
+    std::string file = X["file"];
+
+    Rcout << ncol << "x" << nrow << "  -  " << file << "\n";
+
+    NumericVector mean = rep(0.0, ncol);
+    NumericVector var  = rep(0.0, ncol);
+    NumericVector xsquared = rep(0.0, ncol);
+
+    Rcout << file << " (file)\n";
+    Rcout << nrow << " " << ncol << " " << header << "\n";
+
+    // Open file connection, skip first 'skip + header' lines.
+    std::ifstream myfile(file);
+    std::string line;
+    std::string val;
+
+    // Skipping lines
+    if (skip > 0) {
+        for (int i = 0; i < skip; i++) std::getline(myfile, line, '\n');
+    }
+    if (header) {
+        std::getline(myfile, line, '\n'); // Skipping header
+    }
+
+    std::stringstream iss(""); // Must be 'globally' available
+
+    // Reading data
+    int test_counter = 0;
+    double x = 0.;
+    while (std::getline(myfile, line, '\n')) {
+        test_counter++;
+        iss.clear(); iss.str(line);
+        for (int i = 0; i < ncol; i++) {
+            std::getline(iss, val, ',');
+            x = std::stod(val);
+            mean[i] = mean[i] + x;
+            xsquared[i] = xsquared[i] + x * x;
+        }
+    }
+    for (int i = 0; i < ncol; i++) {
+        var[i] = (xsquared[i] - mean[i] * mean[i] / nrow) / nrow;
+    }
+    for (int i = 0; i < ncol; i++) mean[i] = mean[i] / nrow;
+    Rcout << "Number of lines processed: " << test_counter << "\n";
+
+    return Rcpp::List::create(Named("mean") = mean,
+                              Named("var") = var);
+
+}
 
