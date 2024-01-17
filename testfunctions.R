@@ -10,14 +10,18 @@ get_testdata <- function(nobs, p, ff = FALSE) {
     stopifnot(file.exists(file))
 
     if (!ff) {
+	cat(" - Reading as csv file\n")
         d <- read.csv(file, comment.char = "#")
     } else {
+	cat(" - Loading ff, reading via read.table.ffdf\n")
         require("ff")
         d <- read.table.ffdf(file = file, comment.char = "#", sep = ",", header = TRUE)
     }
     # Reading meta
+    cat(" - Extracting formula from from meta\n")
     x <- read.table(file, nrow = 4, sep = ":", comment.char = "")
     f <- list(as.formula(x[3, 2]), as.formula(x[4, 2]))
+    cat(" - Returning list of data and formula now\n")
     return(list(data = d, formula = f))
 
 }

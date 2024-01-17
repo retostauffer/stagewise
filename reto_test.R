@@ -42,7 +42,7 @@ if (args$original) {
 cat("Sourcing testfunctions (to load test data)\n")
 source("testfunctions.R")
 t <- Sys.time()
-cat("Loading testdata with p = ", args$p, " and ff = ", args$ff, "\n")
+cat("Loading testdata with nobs = ", args$nobs, " p = ", args$p, " ff = ", args$ff, "\n")
 xxx <- get_testdata(args$nobs, args$p, args$ff)
 t <- as.numeric(Sys.time() - t, units = "mins")
 cat("\n\nJust reading the test data took ", round(t, 2), " minutes\n")
