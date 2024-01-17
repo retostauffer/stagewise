@@ -9,6 +9,8 @@
 
     # If character, translate to integer
     if (is.character(j)) {
+        print(j)
+        print(x$colnames)
         idx <- which(!j %in% x$colnames)
         if (length(idx) > 0)
             stop("column names not in data set: ", paste(x$colnames[idx], collapse = ", "))
@@ -21,6 +23,8 @@
     if (any(j < 0) | any(j > x$dim$ncol))
         stop("index `i` out of range (must be within {1, ", x$dim$ncol, "}")
 
+    print(sort(i))
+    print(sort(j))
     print("subsetting now")
     retoMat_subset(x, sort(i), sort(j))
 

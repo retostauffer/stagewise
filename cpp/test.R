@@ -16,19 +16,35 @@ file3 <- "minimal.csv"
 
 # Create minimal
 N <- 100000
+N <- 10
 d <- data.frame(x = rnorm(N, 10, 5),
-                y = rnorm(N, 52, 13))
-write.csv(d, file = file1, row.names = FALSE)
+                y = rnorm(N, 52, 13),
+                foo = rnorm(N, -2, 3),
+                bar = rnorm(N, -100, 0.2))
+d <- data.frame(x   = sample(1:99, N), 
+                y   = sample(1:99 + 100, N), 
+                foo = sample(1:99 + 200, N), 
+                bar = sample(1:99 + 300, N))
+write.csv(d, file = file3, row.names = FALSE)
 
 
 ############################
+# sourcing retoMat.cpp
 Rcpp::sourceCpp("retoMat.cpp")
+cat("sourced cpp, continue ...\n")
 system.time(rmt <- retoMat(file3, 0, TRUE, TRUE, ","))
+
 f <- function(...) source("retoMat.R") # Methods
 
 print(rmt)
-f(); print(rmt[c(1, 3, 100, 37), 1:2])
-f(); print(rmt[100, c("x", "y")])
+cat(" ---- cpp\n")
+ii <- 3:2
+jj <- c("foo","x")
+f(); print(xx <- rmt[ii, jj])
+d
+xx
+cat(" ---- R\n")
+print(d[3:2, c("foo", "x")])
 
 
 
