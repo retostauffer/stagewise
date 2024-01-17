@@ -27,7 +27,8 @@ Rcpp::List retoMat(std::string file, int skip = 0,
                     bool header = true, bool verbose = true,
                     char sep = ',') {
 
-    Rcout << "file name is " << file.c_str() << "\n";
+    if (verbose)
+        Rcout << "[cpp] Reading file " << file.c_str() << "\n";
 
     int ncol = 0, nrow = 0;
 
@@ -56,7 +57,8 @@ Rcpp::List retoMat(std::string file, int skip = 0,
         ncol++;
         //Rcout << " | " << val << "\n";
     }
-    Rcout << "Number of columns: " << ncol << "\n";
+    if (verbose)
+        Rcout << "[cpp] Number of columns: " << ncol << "\n";
     
     // Creating colnames vector (length ncol) and fill.
     CharacterVector colnames(ncol);
@@ -91,7 +93,7 @@ Rcpp::List retoMat(std::string file, int skip = 0,
             colnames[i] = "V" + to_string(i);
         }
     }
-    Rcout << "Colnames: " << colnames << "\n";
+    //Rcout << "[cpp] Colnames: " << colnames << "\n";
 
     // Reading data; read line by line until we find EOF.
     // At the same time we calculate the row sums and
@@ -100,6 +102,8 @@ Rcpp::List retoMat(std::string file, int skip = 0,
     //          elements and if the length of the row (number
     //          ov values) is not equal to ncol!
     double x = 0.;
+    if (verbose)
+        Rcout << "[cpp] Processing data ...\n";
     while (std::getline(myfile, line, '\n')) {
         nrow++;
         iss.clear(); iss.str(line);
@@ -110,16 +114,23 @@ Rcpp::List retoMat(std::string file, int skip = 0,
             xsumsquared[i] = xsumsquared[i] + x * x;
         }
     }
-    Rcout << "Number of rows: " << nrow << "\n";
+
+    if (verbose)
+        Rcout << "[cpp] Number of rows: " << nrow << "\n";
 
     // Calculate mean and standard deviation (sd)
-    for (int i = 0; i < ncol; i++)
+    if (verbose)
+        Rcout << "[cpp] Calculating mean and standard deviation (row-wise)\n";
+    for (int i = 0; i < ncol; i++) {
         sd[i]    = sqrt((xsumsquared[i] - xsum[i] * xsum[i] / nrow) / nrow);
-    for (int i = 0; i < ncol; i++)
         mean[i]  = xsum[i] / nrow;
+    }
 
+    if (verbose)
+        Rcout << "[cpp] All done, creating return object ...\n";
 
     mean.attr("names") = colnames;
+    sd.attr("names") = colnames;
     List dim = Rcpp::List::create(Named("nrow") = nrow, Named("ncol") = ncol);
 
     //Rcpp::List res = Rcpp::List::create(colnames);
@@ -137,3 +148,57 @@ Rcpp::List retoMat(std::string file, int skip = 0,
 }
 
 
+// [[Rcpp::export]]
+Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVector j, bool verbose = true) {
+
+    int ni = i.size(), nj = j.size();
+    Rcpp::List dim = x["dim"];
+    int ncol = as<int>(dim["ncol"]);
+    int nrow = as<int>(dim["nrow"]);
+    int skip = as<int>(x["skip"]);
+    bool header = as<bool>(x["header"]);
+    Rcout << ncol << " x " << nrow << "\n";
+    std::string file = x["file"];
+
+    // Get original column names (colnames), set up new
+    // vector (mcname) for the 'matrix column names' added
+    // later as dimnames.
+    CharacterVector colnames = x["colnames"];
+    CharacterVector mcname(nj);
+    for (int k = 0; k < nj; k ++) mcname[k] = colnames[k];
+
+    // Setting up resulting matrix; adding dimension names
+    NumericMatrix res(ni, nj);
+    res.attr("dimnames") = Rcpp::List::create(R_NilValue, mcname);
+
+    // Open file connection
+    std::ifstream myfile(file);
+    std::string line;
+    std::string val;
+
+    // Skipping non-data lines
+        // Skipping lines
+    if (skip > 0) {
+        for (int i = 0; i < skip; i++) std::getline(myfile, line, '\n');
+    }
+    if (header) {
+        std::getline(myfile, line, '\n'); // Skipping header
+    }
+    std::stringstream iss(""); // Must be 'globally' available
+
+    // ....
+    int test_counter = 0;
+    double v = 0.;
+    while (std::getline(myfile, line, '\n')) {
+        test_counter++;
+        iss.clear(); iss.str(line);
+        for (int i = 0; i < ncol; i++) {
+            std::getline(iss, val, ',');
+            v = std::stod(val);
+        }
+    }
+    Rcout << test_counter << "\n";
+
+    return res;
+
+}
