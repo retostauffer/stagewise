@@ -6,8 +6,26 @@
 using namespace Rcpp;
 using namespace std;
 
+
+// retoMat2(file, skip = 0, header = true, verbose = true)
+// 
+// Parameters
+// ----------
+// file : std::string
+//      Path/name of the CSV file to be read.
+// skip : int
+//      Positive integer, number of lines to be skipped in the CSV.
+// header : bool
+//      If true it is expected that the first line we find is the header line.
+// verbose : bool
+//      Creates some output if true.
+// sep : char
+//      Separator of the data, defaults to ','.
+
 // [[Rcpp::export]]
-Rcpp::List retoMat2(std::string file, int skip = 0, int nrows = 3, bool header = true) {
+Rcpp::List retoMat(std::string file, int skip = 0,
+                    bool header = true, bool verbose = true,
+                    char sep = ',') {
 
     Rcout << "file name is " << file.c_str() << "\n";
 
@@ -34,7 +52,7 @@ Rcpp::List retoMat2(std::string file, int skip = 0, int nrows = 3, bool header =
     iss.clear(); iss.str(line);
     //std::stringstream iss(line);
     // First run: count number of columns
-    while (std::getline(iss, val, ',')) {
+    while (std::getline(iss, val, sep)) {
         ncol++;
         //Rcout << " | " << val << "\n";
     }
@@ -44,13 +62,13 @@ Rcpp::List retoMat2(std::string file, int skip = 0, int nrows = 3, bool header =
     CharacterVector colnames(ncol);
 
     // Creating numeric vectors to store row sums and
-    // squared row sums to calculate mean and variance (sd).
+    // squared row sums to calculate mean and standard deviation (sd).
     // We could re-use some of them, but they are fairly small
     // (numeric vectors of length ncol).
     NumericVector xsum        = rep(0.0, ncol);
     NumericVector xsumsquared = rep(0.0, ncol);
     NumericVector mean        = rep(0.0, ncol);
-    NumericVector variance    = rep(0.0, ncol);
+    NumericVector sd          = rep(0.0, ncol);
 
     // Extracting header information
     if (header) {
@@ -77,7 +95,7 @@ Rcpp::List retoMat2(std::string file, int skip = 0, int nrows = 3, bool header =
 
     // Reading data; read line by line until we find EOF.
     // At the same time we calculate the row sums and
-    // squared row sums for mean/variance.
+    // squared row sums for mean/sd.
     // TODO(R): Test what happens if we find non-numeric
     //          elements and if the length of the row (number
     //          ov values) is not equal to ncol!
@@ -94,21 +112,27 @@ Rcpp::List retoMat2(std::string file, int skip = 0, int nrows = 3, bool header =
     }
     Rcout << "Number of rows: " << nrow << "\n";
 
-    // Calculate mean and variance
+    // Calculate mean and standard deviation (sd)
     for (int i = 0; i < ncol; i++)
-        variance[i] = (xsumsquared[i] - xsum[i] * xsum[i] / nrow) / nrow;
+        sd[i]    = sqrt((xsumsquared[i] - xsum[i] * xsum[i] / nrow) / nrow);
     for (int i = 0; i < ncol; i++)
-        mean[i]     = xsum[i] / nrow;
+        mean[i]  = xsum[i] / nrow;
+
+
+    mean.attr("names") = colnames;
+    List dim = Rcpp::List::create(Named("nrow") = nrow, Named("ncol") = ncol);
 
     //Rcpp::List res = Rcpp::List::create(colnames);
     List rval = Rcpp::List::create(Named("file") = file,
                                    Named("header") = header,
                                    Named("skip") = skip,
-                                   Named("nrow") = nrow,
-                                   Named("ncol") = ncol,
+                                   Named("dim")  = dim,
                                    Named("colnames") = colnames,
-                                   Named("mean") = mean,
-                                   Named("variance") = variance);
+                                   // mean and standard deviation for scaling
+                                   Named("scale") = Rcpp::List::create(Named("mean") = mean,
+                                                                       Named("sd") = sd)
+                                  );
+    rval.attr("class") = "retoMat";
     return rval;
 }
 
