@@ -23,8 +23,10 @@ get_testdata <- function(nobs, p, ff = FALSE, bigmem = FALSE) {
         d <- read.csv(file, comment.char = "#")
     }
     # Reading meta
+    cat(" - Extracting formula from from meta\n")
     x <- read.table(file, nrow = 4, sep = ":", comment.char = "")
     f <- list(as.formula(x[3, 2]), as.formula(x[4, 2]))
+    cat(" - Returning list of data and formula now\n")
     return(list(data = d, formula = f))
 
 }
