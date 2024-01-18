@@ -14,7 +14,7 @@ get_testdata <- function(nobs, p, ff = FALSE, bigmem = FALSE) {
     if (ff & bigmem) warning("ff and bigmem are set TRUE, using bigmem")
 
     if (bigmem) {
-   	 cat(" - Reacing via bigmemory, read.big.matrix\n")
+   	 cat(" - Reading via bigmemory, read.big.matrix\n")
         require("bigmemory")
         d <- read.big.matrix(file, header = TRUE, skip = 4, type = "double")
     } else if (ff) {
