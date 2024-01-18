@@ -32,34 +32,29 @@ write.csv(d, file = file3, row.names = FALSE)
 # sourcing retoMat.cpp
 Rcpp::sourceCpp("retoMat.cpp")
 cat("sourced cpp, continue ...\n")
-system.time(rmt <- retoMat(file3, 0, TRUE, TRUE, ","))
+system.time(rmt <- retoMat(file3, 0, TRUE, ",", TRUE))
 
 f <- function(...) source("retoMat.R") # Methods
 
-print(rmt)
+f(); print(rmt, n = 1000)
+f(); head(rmt, n = 1000)
+f(); tail(rmt, n = 3)
+
 cat(" ---- cpp\n")
 ii <- 3:2
 jj <- c("foo","x")
 f(); print(xx <- rmt[ii, jj])
-d
-xx
 cat(" ---- R\n")
 print(d[3:2, c("foo", "x")])
 
 
-
-stop(" ---- devel end ---- ")
-
 ############################
-f(); class(rmt)
-f(); print(rmt)
-f(); summary(rmt)
+library("arrow")
 
-library("bigmemory")
-bm <- read.big.matrix(file = file3, type = "double")
-bm
-print(bm)
-summary(bm)
+a <- open_dataset(file3, format = "csv")
+as.data.frame(a[ii, jj])
+rmt[ii, jj]
+
 
 
 

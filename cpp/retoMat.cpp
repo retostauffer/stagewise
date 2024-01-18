@@ -7,7 +7,7 @@ using namespace Rcpp;
 using namespace std;
 
 
-// retoMat2(file, skip = 0, header = true, verbose = true)
+// retoMat(file, skip = 0, header = true, verbose = true, sep = ',')
 // 
 // Parameters
 // ----------
@@ -17,15 +17,20 @@ using namespace std;
 //      Positive integer, number of lines to be skipped in the CSV.
 // header : bool
 //      If true it is expected that the first line we find is the header line.
-// verbose : bool
-//      Creates some output if true.
 // sep : char
 //      Separator of the data, defaults to ','.
+// verbose : bool
+//      Creates some output if true.
+//
+// Return
+// ------
+// List : Returns a list with information about the dimension of the data set,
+// column names, and row-wise mean and standard deviation.
 
 // [[Rcpp::export]]
 Rcpp::List retoMat(std::string file, int skip = 0,
-                    bool header = true, bool verbose = true,
-                    char sep = ',') {
+                    bool header = true,
+                    char sep = ',', bool verbose = true) {
 
     if (verbose)
         Rcout << "[cpp] Reading file " << file.c_str() << "\n";
@@ -147,17 +152,34 @@ Rcpp::List retoMat(std::string file, int skip = 0,
     return rval;
 }
 
+// Helper function to check if integer 'b' is in the
+// IntegerVector 'a'. Returns true if found, false otherwise.
 bool contains(IntegerVector a, int b) {
-    if (std::find(a.begin(), a.end(), b)!=a.end()) {
-        Rcout << " vector a=" << a << " contains " << b << "\n";
-    }
     return std::find(a.begin(), a.end(), b)!=a.end();
 }
 
-// TODO
-//
+
+
+// retoMat_subset(file, skip = 0, header = true, sep = ',', verbose = true)
+// 
+// Parameters
+// ----------
+// x : List
+//      Object of class retoMat with data set meta information.
+// i : IntegerVector
+//      Index of rows to be read.
+// j : IntegerVector
+//      Index of columns to be read.
 // sep : char
 //      Separator of the data, defaults to ','.
+// verbose : bool
+//      Creates some output if true.
+//
+// Return
+// ------
+// Numericmatrix : Matrix of dimension i.size() x j.size() with
+// column names (row names empty).
+
 
 // [[Rcpp::export]]
 Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVector j,
@@ -210,7 +232,7 @@ Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVecto
     // Start extracting the data ...
     if (verbose) Rcout << "[cpp] Start extracting required data\n";
     ci = 0; // count from zero
-    mi = 0; mj = 0;
+    mi = 0;
     while (std::getline(myfile, line, '\n')) {
         if (!contains(i, ci + 1)) {
             ci++; // Increasing csv line counter
@@ -219,15 +241,15 @@ Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVecto
 
         // Else parse the line and extract the required values
         iss.clear(); iss.str(line);
+        mj = 0;
         for (cj = 0; cj < ncol; cj++) {
             std::getline(iss, val, sep);
-            Rcout << "baam on ci=" << ci << " cj=" << cj << " mi=" << mi << " mj=" << mj << "\n";
-            if (contains(j, cj)) {
-                res[mi, mj] = std::stod(val);
+            if (contains(j, cj + 1)) {
+                res(mi, mj) = std::stod(val);
                 mj++;
             }
         }
-        mj++; // Increasing matrix row counter
+        mi++; // Increasing matrix row counter
         ci++; // Increasing csv line counter
     }
 

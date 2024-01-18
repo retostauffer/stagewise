@@ -9,12 +9,10 @@
 
     # If character, translate to integer
     if (is.character(j)) {
-        print(j)
-        print(x$colnames)
         idx <- which(!j %in% x$colnames)
         if (length(idx) > 0)
             stop("column names not in data set: ", paste(x$colnames[idx], collapse = ", "))
-        j <- sort(match(j, x$colnames))
+        j <- match(j, x$colnames)
     }
 
     # Out of range check
@@ -23,21 +21,24 @@
     if (any(j < 0) | any(j > x$dim$ncol))
         stop("index `i` out of range (must be within {1, ", x$dim$ncol, "}")
 
-    print(sort(i))
-    print(sort(j))
-    print("subsetting now")
-    retoMat_subset(x, sort(i), sort(j))
-
+    # Calling cpp for getting the data
+    res <- retoMat_subset(x, sort(i), sort(j))
+    return(res[order(i), order(j)])
 
 }
 
 
 head.retoMat <- function(x, n = 6, ...) {
-
+    i <- seq_len(n)
+    x[i[i <= x$dim$nrow], ]
 }
 
+tail.retoMat <- function(x, n = 6, ...) {
+    i <- rev(x$dim$nrow - seq_len(n) + 1)
+    x[i[i >= 1], ]
+}
 
-print.retoMat <- function(x, ...) {
+print.retoMat <- function(x, n = 6, ...) {
     # Estimated size if fully loaded in MB, assuming
     # * 8 bytes for each value (double)
     # * 120 bytes for column names (char)
@@ -56,7 +57,7 @@ print.retoMat <- function(x, ...) {
     if (!file.exists(x$file)) {
         cat("\n[ERROR] File cannot be found\n")
     } else {
-        print(head(x))
+        print(head(x, n = n))
     }
     invisible(x)
 }
