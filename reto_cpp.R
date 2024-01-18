@@ -12,7 +12,6 @@ parser$add_argument("-p", type = "integer", default = 1e2,
                     help = "Number of parameters (covariates), defaults to 1e2")
 
 args <- parser$parse_args()
-print(str(args))
 if (is.null(args$batchsize)) {
     args$print_help()
     stop("-b/--batchsize missing")
@@ -22,6 +21,7 @@ if (is.null(args$batchsize)) {
     args$batchsize <- floor(args$nobs / args$batchsize)
 }
 if (args$maxit < 5) stop("-m/--maxit must be 5 or larger")
+print(str(args))
 
 # Define name of CSV file we will use; will throw an error
 # if not existing.
@@ -39,7 +39,7 @@ data <- read.retoMat(csvfile, skip = 4)
 t <- as.numeric(Sys.time() - t, units = "mins")
 cat("\n\nInitial reading (retoMat) took ", round(t, 2), " minutes\n")
 
-print(head(data[, 1:5]))
+print(data[1:5, 1:5])
 
 # Building formula
 cat("Building formula now ...\n")
@@ -55,14 +55,13 @@ set.seed(666)
 library("peakRAM")
 cat("Calling sdr now ...\n")
 pk <- peakRAM({
-    b <- sdr(formula   = xxx$formula,
-             data      = xxx$data,
+    b <- sdr(formula   = f,
+             data      = data,
              CF        = TRUE,
              updating  = "bs",
              family    = NO,
              batch_ids = args$batchsize,
-             maxit     = args$maxit,
-             quick_ffdf = args$quick_ffdf)
+             maxit     = args$maxit)
 })
 t <- as.numeric(Sys.time() - t, units = "mins")
 cat("\n\nFull estimation took me ", round(t, 2), " minutes in total\n")
