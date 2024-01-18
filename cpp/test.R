@@ -36,6 +36,22 @@ system.time(rmt <- retoMat(file3, 0, TRUE, ",", TRUE))
 
 f <- function(...) source("retoMat.R") # Methods
 
+Rcpp::sourceCpp("retoMat.cpp"); source("retoMat.R")
+print(rmt[1:10, ])
+print(rmt[1:10, , standardize = TRUE])
+
+xx <- rmt[1:10, , standardize = TRUE]
+print(round(apply(xx, 2, mean), 2))
+print(round(apply(xx, 2, sd), 2))
+
+
+rmt2 <- retoMat(file2, 4)
+xx <- rmt2[1:10000, , standardize = TRUE]
+print(round(apply(xx, 2, mean), 2))
+print(round(apply(xx, 2, sd), 2))
+
+stop(" ------------- ")
+
 f(); print(rmt, n = 1000)
 f(); head(rmt, n = 1000)
 f(); tail(rmt, n = 3)

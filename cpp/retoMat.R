@@ -2,7 +2,7 @@
 
 
 
-`[.retoMat` <- function (x, i, j, drop = FALSE) {
+`[.retoMat` <- function (x, i, j, standardize = FALSE, drop = FALSE) {
 
     i <- unique(as.integer(i))
     j <- if (missing(j)) seq_len(x$dim$ncol) else unique(j)
@@ -22,20 +22,25 @@
         stop("index `i` out of range (must be within {1, ", x$dim$ncol, "}")
 
     # Calling cpp for getting the data
-    res <- retoMat_subset(x, sort(i), sort(j))
-    return(res[order(i), order(j)])
+    res <- retoMat_subset(x, sort(i), sort(j), standardize = standardize)
+    res <- res[order(i), order(j)]
+
+    if ((length(i) == 1 | length(j) == 1) & drop) {
+        res <- as.vector(res)
+    }
+    return(res)
 
 }
 
 
-head.retoMat <- function(x, n = 6, ...) {
+head.retoMat <- function(x, n = 6, standardized = FALSE, ...) {
     i <- seq_len(n)
-    x[i[i <= x$dim$nrow], ]
+    x[i[i <= x$dim$nrow], , standardized = standardized]
 }
 
-tail.retoMat <- function(x, n = 6, ...) {
+tail.retoMat <- function(x, n = 6, standardized = FALSE, ...) {
     i <- rev(x$dim$nrow - seq_len(n) + 1)
-    x[i[i >= 1], ]
+    x[i[i >= 1], , standardized = standardized]
 }
 
 print.retoMat <- function(x, n = 6, ...) {
@@ -68,3 +73,5 @@ summary.retoMat <- function(x, ...) {
                ncol = x$dim$ncol,
                file = x$file)
 }
+
+

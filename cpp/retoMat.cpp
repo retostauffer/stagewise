@@ -160,7 +160,7 @@ bool contains(IntegerVector a, int b) {
 
 
 
-// retoMat_subset(file, skip = 0, header = true, sep = ',', verbose = true)
+// retoMat_subset(x, i, j, standardize = false, sep = ',', verbose = false)
 // 
 // Parameters
 // ----------
@@ -170,6 +170,9 @@ bool contains(IntegerVector a, int b) {
 //      Index of rows to be read.
 // j : IntegerVector
 //      Index of columns to be read.
+// standardize : bool
+//      If set true, the values will be standardized using the row-wise
+//      mean and sd stored in x.
 // sep : char
 //      Separator of the data, defaults to ','.
 // verbose : bool
@@ -183,7 +186,7 @@ bool contains(IntegerVector a, int b) {
 
 // [[Rcpp::export]]
 Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVector j,
-        char sep = ',', bool verbose = true) {
+        bool standardize = false, char sep = ',', bool verbose = false) {
 
     int ni = i.size(), nj = j.size();
     Rcpp::List dim = x["dim"];
@@ -191,8 +194,12 @@ Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVecto
     int nrow = as<int>(dim["nrow"]);
     int skip = as<int>(x["skip"]);
     bool header = as<bool>(x["header"]);
-    Rcout << nrow << " x " << ncol << "\n";
     std::string file = x["file"];
+
+    // Mean and standard deviation for standardization
+    Rcpp::List scale = x["scale"];
+    NumericVector mean = scale["mean"];
+    NumericVector sd   = scale["sd"];
 
     // Index counters for csv (ci, cj) file and our results matrix (mi, mj)
     int ci = 0, cj = 0, mi = 0, mj = 0;
@@ -228,12 +235,15 @@ Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVecto
         std::getline(myfile, line, '\n'); // Skipping header
     }
     std::stringstream iss(""); // Must be 'globally' available
-
+                               //
     // Start extracting the data ...
     if (verbose) Rcout << "[cpp] Start extracting required data\n";
     ci = 0; // count from zero
     mi = 0;
     while (std::getline(myfile, line, '\n')) {
+        // End search
+        if (ci > max(i)) break;
+        // Check if current row (index) is needed
         if (!contains(i, ci + 1)) {
             ci++; // Increasing csv line counter
             continue;
@@ -245,13 +255,19 @@ Rcpp::NumericMatrix retoMat_subset(const List & x, IntegerVector i, IntegerVecto
         for (cj = 0; cj < ncol; cj++) {
             std::getline(iss, val, sep);
             if (contains(j, cj + 1)) {
-                res(mi, mj) = std::stod(val);
+                if (!standardize) {
+                    res(mi, mj) = std::stod(val);
+                } else {
+                    res(mi, mj) = (std::stod(val) - mean[cj]) / sd[cj];
+                }
                 mj++;
             }
         }
         mi++; // Increasing matrix row counter
         ci++; // Increasing csv line counter
     }
+
+    Rcout << "standardize? " << standardize << "\n";
 
     return res;
 
