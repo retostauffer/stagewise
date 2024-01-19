@@ -141,3 +141,45 @@ Rcpp::List binMat(std::string file, int skip = 0,
     rval.attr("class") = "binMat";
     return rval;
 }
+
+// [[Rcpp::export]]
+Rcpp::List read_binMat(std::string file, int ncol, int nrow, bool verbose = true) {
+
+    if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << "\n";
+
+    int bytes_dbl = 8, counter = 0;
+    double y;
+    char buffer[bytes_dbl];
+
+    NumericMatrix rmat(ncol, nrow);
+    //NumericMatrix rmat(nrow, ncol);
+    NumericVector rvec(nrow * ncol);
+
+    // Open input file connection (binary)
+    std::ifstream myfile(file.c_str(), ios::in | std::ios::binary);
+    if (!myfile) {
+        stop("Whoops, input file not found/problem to open stream.");
+    }
+
+
+    for (int j = 0; j < ncol; j++) {
+        for (int i = 0; i < ncol; i++) {
+            myfile.read(buffer, bytes_dbl);
+            memcpy(&y, buffer, bytes_dbl);
+            rmat(j, i) = y;
+        }
+    }
+
+    
+    //for (int i = 0; i < (ncol * nrow); i++) {
+    //    myfile.read(buffer, bytes_dbl);
+    //    memcpy(&y, buffer, bytes_dbl);
+    //    rvec(i) = y;
+    //}
+
+    myfile.close();
+
+    // Dummy return
+    IntegerVector dummy = rep(0, 3);
+    return Rcpp::List::create(rmat, dummy);
+}

@@ -1,5 +1,16 @@
 
 
+.PHONY: install
+install:
+	Rscript -e 'Rcpp::compileAttributes("sdr")'
+	R CMD INSTALL sdr
+.PHONY: test
+test: install
+	Rscript sdr/tests/tinytest.R
+
+.PHONY: coverage
+coverage: install
+	Rscript -e 'covr::report(covr::package_coverage("sdr"), file = "sdr_coverage.html")'
 
 
 
