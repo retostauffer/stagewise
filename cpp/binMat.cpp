@@ -43,17 +43,21 @@ Rcpp::List binMat(std::string file, int skip = 0,
 
     std::stringstream iss(""); // Must be 'globally' available
 
-    // Header?
-    std::getline(myfile, line, '\n');
+    // Reading first line to count number of columns.
+    // This can be a header line (if header = true we will extract
+    // the column names from it) or a data line. To be able to catch
+    // both cases we need to store the file pointer to revert in case
+    // header = false to re-read the same line as 'data'.
+    std::streampos line1 = myfile.tellg(); // Store position of first line
+    std::getline(myfile, line, '\n'); // Reading line
     iss.clear(); iss.str(line);
+
     //std::stringstream iss(line);
     // First run: count number of columns
     while (std::getline(iss, val, sep)) {
         ncol++;
-        //Rcout << " | " << val << "\n";
     }
-    if (verbose)
-        Rcout << "[cpp] Number of columns: " << ncol << "\n";
+    if (verbose) Rcout << "[cpp] Number of columns: " << ncol << "\n";
     
     // Creating colnames vector (length ncol) and fill.
     CharacterVector colnames(ncol);
@@ -84,9 +88,12 @@ Rcpp::List binMat(std::string file, int skip = 0,
         }
     } else {
         for (int i = 0; i < ncol; i++) {
-            Rcout << i;
             colnames[i] = "V" + to_string(i);
         }
+        // Revert to first line as the first line (we already used
+        // once to count number of columns) as a data line.
+        Rcout << "[cpp] Revert line\n";
+        myfile.seekg(line1);
     }
     //Rcout << "[cpp] Colnames: " << colnames << "\n";
 
@@ -109,6 +116,9 @@ Rcpp::List binMat(std::string file, int skip = 0,
             xsumsquared[i] = xsumsquared[i] + x * x;
         }
     }
+
+    if (verbose) Rcout << "[cpp] Closing file connections\n";
+    myfile.close();
     outfile.close();
 
     if (verbose) Rcout << "[cpp] Number of rows: " << nrow << "\n";
@@ -120,8 +130,7 @@ Rcpp::List binMat(std::string file, int skip = 0,
         mean[i]  = xsum[i] / nrow;
     }
 
-    if (verbose)
-        Rcout << "[cpp] All done, creating return object ...\n";
+    if (verbose) Rcout << "[cpp] All done, creating return object ...\n";
 
     mean.attr("names") = colnames;
     sd.attr("names") = colnames;
@@ -143,17 +152,17 @@ Rcpp::List binMat(std::string file, int skip = 0,
 }
 
 // [[Rcpp::export]]
-Rcpp::List read_binMat(std::string file, int ncol, int nrow, bool verbose = true) {
+Rcpp::List read_binMatFull(std::string file, int nrow, int ncol, bool verbose = true) {
 
     if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << "\n";
 
     int bytes_dbl = 8, counter = 0;
     double y;
     char buffer[bytes_dbl];
+    
+    if (verbose) Rcout << "Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
 
-    NumericMatrix rmat(ncol, nrow);
-    //NumericMatrix rmat(nrow, ncol);
-    NumericVector rvec(nrow * ncol);
+    NumericMatrix rmat(nrow, ncol);
 
     // Open input file connection (binary)
     std::ifstream myfile(file.c_str(), ios::in | std::ios::binary);
@@ -161,25 +170,20 @@ Rcpp::List read_binMat(std::string file, int ncol, int nrow, bool verbose = true
         stop("Whoops, input file not found/problem to open stream.");
     }
 
-
-    for (int j = 0; j < ncol; j++) {
-        for (int i = 0; i < ncol; i++) {
+    counter = 0;
+    for (int i = 0; i < nrow; i++) {
+        for (int j = 0; j < ncol; j++) {
+            counter++;
             myfile.read(buffer, bytes_dbl);
             memcpy(&y, buffer, bytes_dbl);
-            rmat(j, i) = y;
+            rmat(i, j) = y;
         }
     }
 
-    
-    //for (int i = 0; i < (ncol * nrow); i++) {
-    //    myfile.read(buffer, bytes_dbl);
-    //    memcpy(&y, buffer, bytes_dbl);
-    //    rvec(i) = y;
-    //}
+    if (verbose) Rcout << "[cpp] Closing file connection\n";
 
     myfile.close();
 
     // Dummy return
-    IntegerVector dummy = rep(0, 3);
-    return Rcpp::List::create(rmat, dummy);
+    return Rcpp::List::create(Named("data") = rmat);
 }
