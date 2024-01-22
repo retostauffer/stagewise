@@ -9,6 +9,8 @@ write.csv(as.data.frame(matrix(1:35, ncol = 5, byrow = TRUE,
                      dimnames = list(NULL, LETTERS[1:5]))),
               row.names = FALSE, file = file4)
 print(system.time(x2 <- create_binmm(file4, "_foo.bin", skip = 0, header = TRUE)))
+
+cat("\n\n ---------- read -----------------\n\n")
 system.time(y2 <- meta_binmm("_foo.bin", x2$dim$nrow, x2$dim$ncol))
 print(y2)
 

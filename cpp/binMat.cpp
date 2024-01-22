@@ -12,13 +12,13 @@ int my_magic_number() {
 }
 
 // Writes magic number into current ifstream
-void set_magic_number(std::ofstream& ofile, int bytes = 4) {
+void write_magic_number(std::ofstream& ofile, int bytes = 4) {
     int m = my_magic_number();
     ofile.write(reinterpret_cast<const char*>(&m), bytes);
 }
     
 // Reading magic number from current position of ifstream
-int get_magic_number(std::ifstream& infile, int bytes = 4) {
+int read_magic_number(std::ifstream& infile, int bytes = 4) {
     int m;
     char buffer[bytes];
     infile.read(buffer, bytes);
@@ -26,29 +26,22 @@ int get_magic_number(std::ifstream& infile, int bytes = 4) {
     return m;
 }
 
-void set_char(std::ofstream& ofile, char val, int bytes) {
+void write_string(std::ofstream& ofile, const std::string& val, const int bytes) {
+    ofile.write(val.c_str(), bytes);
+}
+
+// Reading std::string of length nchar from ifstream
+std::string read_string(std::ifstream& infile, const int nchar) {
+    std::string result(nchar, '\0'); // Create string with 'nchar' chars
+    infile.read(&result[0], nchar);
+    return result;
+}
+
+void write_int(std::ofstream& ofile, int val, int bytes = 4) {
     ofile.write(reinterpret_cast<const char*>(&val), bytes);
 }
-char get_char(std::ifstream& infile, int bytes) {
-    char* res = new char[bytes + 1];
-    infile.read(res, bytes);
-    return res;
-    //char buffer[bytes];
-    ////char* res = new char[bytes + 1];
-    //char res[bytes + 1];
-    //Rcout << " :: " << bytes << "\n";
-    //Rcout << " ??? inline.read()\n";
-    //infile.read(buffer, bytes);
-    //Rcout << " ??? memcpy()\n";
-    //strcpy(res, buffer);
-    //Rcout << " ??? print\n";
-    //Rcout << res << "\n";
-    //return res;
-}
-void set_int4(std::ofstream& ofile, int val, int bytes = 4) {
-    ofile.write(reinterpret_cast<const char*>(&val), bytes);
-}
-int get_int4(std::ifstream& infile, int bytes = 4) {
+
+int read_int(std::ifstream& infile, int bytes = 4) {
     char buffer[bytes];
     int res;
     infile.read(buffer, bytes);
@@ -66,7 +59,7 @@ Rcpp::List create_binmm(std::string file,
     int ncol = 0, nrow = 0, nchar;
     int bytes_dbl = 8, nchar_colnames = 0, nchar_file;
     int bytes_colnames = 4; // We'll take bytes_colnames * nchar_colnames later;
-    int bytes_file     = 8 * file.size(); // 8 bytes per char
+    int nchar_filename = file.size(); // Number of character of input file name
     std::string line;
     std::string val;
 
@@ -75,7 +68,7 @@ Rcpp::List create_binmm(std::string file,
     //Rcout << " xxxxxxxxxxxx " << file_char << " xxxxxxx\n";
     //std::strcpy(file_char, file.c_str());
 
-    if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << " (" << bytes_file << ")\n";
+    if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << " (filename len = " << nchar_filename << ")\n";
 
     // Open input file connection
     std::ifstream ifile(file.c_str());
@@ -118,11 +111,11 @@ Rcpp::List create_binmm(std::string file,
     // - ncol:            4 byte int
     // - file_name_bytes: 4 byte int
     // - file name:       8 * file_name_bytes char
-    set_magic_number(ofile);
-    set_int4(ofile, -999);       // nrow, will be replaced at the end as soon as we know
-    set_int4(ofile, ncol);       // ncol
-    set_int4(ofile, bytes_file); // file name bytes
-    set_char(ofile, *file.c_str(), bytes_file); // file name
+    write_magic_number(ofile);
+    write_int(ofile, -999);       // nrow, will be replaced at the end as soon as we know
+    write_int(ofile, ncol);       // ncol
+    write_int(ofile, nchar_filename); // Length of original file name
+    write_string(ofile, file.c_str(), nchar_filename); // Original file name
     ofile.write(reinterpret_cast<const char*>(file.c_str()), bytes_dbl);
     
     // Creating colnames vector (length ncol) and fill.
@@ -199,7 +192,7 @@ Rcpp::List create_binmm(std::string file,
 
     // Setting number of rows (after 4 bytes; after magic number)
     ofile.seekp(4); 
-    set_int4(ofile, nrow);
+    write_int(ofile, nrow);
 
     ofile.close();
 
@@ -242,7 +235,7 @@ Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true)
     if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << "\n";
 
     int bytes_dbl = 8, counter = 0;
-    int nrow_total, ncol_total, bytes_file;
+    int nrow_total, ncol_total, nchar_filename;
 
     double y;
     char buffer[bytes_dbl];
@@ -251,8 +244,8 @@ Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true)
     if (verbose) Rcout << "Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
 
     // Open input file connection (binary)
-    std::ifstream myfile(file.c_str(), ios::in | std::ios::binary);
-    if (!myfile) {
+    std::ifstream infile(file.c_str(), ios::in | std::ios::binary);
+    if (!infile) {
         stop("Whoops, input file not found/problem to open stream.");
     }
 
@@ -260,20 +253,19 @@ Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true)
     // - magic_number: 4 byte int
     // - file_name_bytes: 4 byte int
     // - ncol: 4 byte int
-    int magic_number = get_magic_number(myfile);
+    int magic_number = read_magic_number(infile);
     if (magic_number != my_magic_number())
         stop("Wrong magic number; content of binary file not what is expected");
     Rcout << "[cpp] Got magic number " << magic_number << "\n";
 
-    nrow_total    = get_int4(myfile);
-    ncol_total    = get_int4(myfile);
+    nrow_total    = read_int(infile);
+    ncol_total    = read_int(infile);
     Rcout << "[cpp] Total dim: " << nrow_total << " x " << ncol_total << "\n";
 
-    bytes_file    = get_int4(myfile);
-    Rcout << bytes_file << "\n";
-    char original_file = get_char(myfile, bytes_file);
+    nchar_filename = read_int(infile);
+    std::string original_file = read_string(infile, nchar_filename);
 
-    Rcout << "[cpp] Original file: " << original_file << "(" << bytes_file << ")\n";
+    Rcout << "[cpp] Original file: " << original_file << " (" << nchar_filename << ")\n";
 
     
 
@@ -287,7 +279,7 @@ Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true)
     for (int i = 0; i < nrow; i++) {
         for (int j = 0; j < ncol; j++) {
             counter++;
-            myfile.read(buffer, bytes_dbl);
+            infile.read(buffer, bytes_dbl);
             memcpy(&y, buffer, bytes_dbl);
             rmat(i, j) = y;
         }
@@ -295,7 +287,7 @@ Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true)
 
     if (verbose) Rcout << "[cpp] Closing file connection\n";
 
-    myfile.close();
+    infile.close();
 
     // Dummy return
     return Rcpp::List::create(Named("data") = rmat);
@@ -314,7 +306,7 @@ Rcpp::List read_binMatFull(std::string file, int nrow, int ncol, bool verbose = 
     double y;
     char buffer[bytes_dbl];
     
-    if (verbose) Rcout << "Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
+    if (verbose) Rcout << "[cpp] Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
 
     NumericMatrix rmat(nrow, ncol);
 
