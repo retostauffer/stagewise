@@ -37,8 +37,8 @@ std::string read_string(std::ifstream& ifile, const int nchar) {
     return result;
 }
 
-void write_double(std::ofstream& ofile, double val) {
-    ofile.write(reinterpret_cast<const char*>(&val), sizeof(val));
+void write_double(std::ofstream& ofile, double val, int &bytes) {
+    ofile.write(reinterpret_cast<const char*>(&val), bytes); //sizeof(val));
 }
 
 double read_double(std::ifstream& ifile) {
@@ -58,14 +58,61 @@ int read_int(std::ifstream& ifile) {
     return res;
 }
 
+int get_bytes(std::string& type) {
 
+    int res = -999;
+    if (type == "float") {
+        res = 4;
+    } else if (type == "double") {
+        res = 8;
+    } else {
+        stop("Unrecognized type!");
+    }
+    return res;
+}
+
+
+// Small helper function; checks if the maximum absolute value
+// found in the data exceeds what we can store with X bytes
+// (controlled by the type argument).
+// If exceeding, throw an error.
+void check_data_range(std::string& type, double& maxabs) {
+
+    bool error = false;
+    if (type == "float") {
+        float limit = std::numeric_limits<float>::max();
+        if (maxabs > limit) error = true;
+    } else if (type == "double") {
+        double limit = std::numeric_limits<double>::max();
+        if (maxabs > limit) error = true;
+    }
+
+    if (error) {
+        std::string errormsg = "Max absolute value (" + to_string(maxabs) + ") exceeds what can be stored as " + type + "; exit (change type)";
+        stop(errormsg);
+    }
+}
 
 
 // -------------------------------------------------------------------
+// -------------------------------------------------------------------
+// -------------------------------------------------------------------
+//
+// Parameters
+// ----------
+// file : Path/name to the csv file to be read.
+// binfile: Name of the binary output file created by this function.
+// type: Can be 'float' or 'double'. Will write the
+//       data in 4 bytes or 8 bytes respectively.
+// skip: Number of lines to skip at the start of the CSV file.
+// header: true if there is a header line with variable description, else false.
+// sep: Single character, value separator.
+// verbose: true/false, increases verbosity if set true.
 
 // [[Rcpp::export]]
 Rcpp::List create_binmm(std::string file,
                         std::string binfile,
+                        std::string type = "double",
                         int skip = 0,
                         bool header = true,
                         char sep = ',', bool verbose = true) {
@@ -76,14 +123,15 @@ Rcpp::List create_binmm(std::string file,
     std::string line;
     std::string val;
 
-    // file from std::string -> const char -> char
-    //char *file_char;
-    //Rcout << " xxxxxxxxxxxx " << file_char << " xxxxxxx\n";
-    //std::strcpy(file_char, file.c_str());
+    // Getting bytes to write the data later on (float, double)
+    int bytes = get_bytes(type);
+    Rcout << "[cpp] Bytes for numerics: " << bytes << " (" << type << ")\n";
 
-    if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << " (filename len = " << nchar_filename << ")\n";
+    Rcout << "[cpp] Range limit for " << type << ": " << std::numeric_limits<double>::max() << "  " << std::numeric_limits<double>::min() << "\n";
+
 
     // Open input file connection
+    if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << " (filename len = " << nchar_filename << ")\n";
     std::ifstream ifile(file.c_str());
     if (!ifile) stop("Whoops, input file not found/problem to open stream.");
 
@@ -182,7 +230,13 @@ Rcpp::List create_binmm(std::string file,
     // TODO(R): Test what happens if we find non-numeric
     //          elements and if the length of the row (number
     //          ov values) is not equal to ncol!
-    double x = 0.;
+
+    // Keeping track of the max(abs(value)) to do a range check
+    // to see if we can accurately store this given the type
+    // used.
+
+    double x, xabs, maxabs = 0.0;
+
     if (verbose) Rcout << "[cpp] Processing data ...\n";
     while (std::getline(ifile, line, '\n')) {
         nrow++;
@@ -190,11 +244,16 @@ Rcpp::List create_binmm(std::string file,
         for (int i = 0; i < ncol; i++) {
             std::getline(iss, val, ',');
             x = std::stod(val);
-            write_double(ofile, x);
+            xabs = std::abs(x);
+            if (xabs > maxabs) maxabs = xabs;
+            write_double(ofile, x, bytes);
             xsum[i]        = xsum[i] + x;
             xsumsquared[i] = xsumsquared[i] + x * x;
         }
     }
+
+    if (verbose) Rcout << "[cpp] Maximum absolute value: " << maxabs << "\n";
+    check_data_range(type, maxabs);
 
     if (verbose) Rcout << "[cpp] Dimension found/read: " << nrow << " x " << ncol << "\n";
     if (verbose) Rcout << "[cpp] Closing file connections\n";
@@ -215,6 +274,9 @@ Rcpp::List create_binmm(std::string file,
         sd[i]    = sqrt((xsumsquared[i] - xsum[i] * xsum[i] / nrow) / nrow);
         mean[i]  = xsum[i] / nrow;
     }
+
+    //Rcout << mean << "\n";
+    //Rcout << sd << "\n";
 
     if (verbose) Rcout << "[cpp] All done, creating return object ...\n";
 
@@ -237,8 +299,9 @@ Rcpp::List create_binmm(std::string file,
 }
 
 
-
-
+// -------------------------------------------------------------------
+// -------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // [[Rcpp::export]]
 Rcpp::NumericMatrix subset_binmm(std::string file, int nrow, int ncol,
@@ -254,9 +317,6 @@ Rcpp::NumericMatrix subset_binmm(std::string file, int nrow, int ncol,
     int i, j, counter = 0;
     int nrow_total, ncol_total, nchar_filename;
 
-    double y;
-
-    
     if (verbose) Rcout << "Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
 
     // Open input file connection (binary)
@@ -272,16 +332,16 @@ Rcpp::NumericMatrix subset_binmm(std::string file, int nrow, int ncol,
     int magic_number = read_magic_number(ifile);
     if (magic_number != my_magic_number())
         stop("Wrong magic number; content of binary file not what is expected");
-    Rcout << "[cpp] Got magic number " << magic_number << "\n";
+    if (verbose) Rcout << "[cpp] Got magic number " << magic_number << "\n";
 
     nrow_total    = read_int(ifile);
     ncol_total    = read_int(ifile);
-    Rcout << "[cpp] Total dim: " << nrow_total << " x " << ncol_total << "\n";
+    if (verbose) Rcout << "[cpp] Total dim: " << nrow_total << " x " << ncol_total << "\n";
 
     nchar_filename = read_int(ifile);
     std::string original_file = read_string(ifile, nchar_filename);
 
-    Rcout << "[cpp] Original file: " << original_file << " (" << nchar_filename << ")\n";
+    if (verbose) Rcout << "[cpp] Original file: " << original_file << " (" << nchar_filename << ")\n";
 
     // Reading column names
     // First nchar of each of the colum names, then string (name)
@@ -305,13 +365,8 @@ Rcpp::NumericMatrix subset_binmm(std::string file, int nrow, int ncol,
     for (j =  0; j < jj.size(); ++j) rmat_colnames[j] = colnames[jj[j]];
     rmat.attr("dimnames") = Rcpp::List::create(R_NilValue, rmat_colnames);
 
-
-    counter = 0;
-
-    std::streampos data_pos0 = ifile.tellg(); // Pointer position start of data
-    Rcout << "start positon  " << data_pos0 << "\n";
-    Rcout << "ii = " << ii << " (len = " << ii.size() << ")\n";
-    Rcout << "jj = " << jj << " (len = " << jj.size() << ")\n";
+    // Pointer position start of data
+    std::streampos data_pos0 = ifile.tellg();
 
     int pos;
     double val;
@@ -328,8 +383,8 @@ Rcpp::NumericMatrix subset_binmm(std::string file, int nrow, int ncol,
     if (verbose) Rcout << "[cpp] Closing file connection\n";
     ifile.close();
 
-    data.attr("original_file") = original_file;
-    data.attr("cols_available") = colnames;
+    rmat.attr("original_file")  = original_file;
+    rmat.attr("cols_available") = colnames;
 
     // Dummy return
     return rmat;
