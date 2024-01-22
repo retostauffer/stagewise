@@ -241,7 +241,7 @@ Rcpp::List create_binmm(std::string file,
 
 
 // [[Rcpp::export]]
-Rcpp::List subset_binmm(std::string file, int nrow, int ncol,
+Rcpp::NumericMatrix subset_binmm(std::string file, int nrow, int ncol,
                         Rcpp::IntegerVector& ii,
                         Rcpp::IntegerVector& jj,
                         bool verbose = true) {
@@ -328,11 +328,10 @@ Rcpp::List subset_binmm(std::string file, int nrow, int ncol,
     if (verbose) Rcout << "[cpp] Closing file connection\n";
     ifile.close();
 
+    data.attr("original_file") = original_file;
+    data.attr("cols_available") = colnames;
+
     // Dummy return
-    return Rcpp::List::create(
-            Named("colnames") = colnames,
-            Named("dim") = Rcpp::List::create(Named("nrow") = nrow, Named("ncol") = ncol),
-            Named("filename") = original_file,
-            Named("data") = rmat);
+    return rmat;
 }
 
