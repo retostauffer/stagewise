@@ -5,13 +5,24 @@ cat("\n\n\n")
 cat(" ------------ demo foo file -----------------\n")
 cat("Parsing file via binmat\n")
 file4 <- "foo.csv"
-write.csv(as.data.frame(matrix(1:35, ncol = 5, byrow = TRUE,
-                     dimnames = list(NULL, LETTERS[1:5]))),
+
+cnames <- c("A", "retostauffer", paste("X", sample(1:500, 3), sep = ""))
+set.seed(666)
+vals   <- sample(1:1000, 35) / 10
+write.csv(as.data.frame(matrix(vals, ncol = 5, byrow = TRUE,
+                     dimnames = list(NULL, cnames))),
               row.names = FALSE, file = file4)
+data <- read.csv(file4)
 print(system.time(x2 <- create_binmm(file4, "_foo.bin", skip = 0, header = TRUE)))
 
 cat("\n\n ---------- read -----------------\n\n")
-system.time(y2 <- meta_binmm("_foo.bin", x2$dim$nrow, x2$dim$ncol))
+
+ii <- c(2, 5)
+jj <- c(2, 4)
+print(data[ii, jj])
+
+system.time(y2 <- subset_binmm("_foo.bin", x2$dim$nrow, x2$dim$ncol,
+                               as.integer(ii) - 1L, as.integer(jj) - 1L))
 print(y2)
 
 

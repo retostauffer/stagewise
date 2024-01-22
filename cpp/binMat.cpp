@@ -18,10 +18,10 @@ void write_magic_number(std::ofstream& ofile, int bytes = 4) {
 }
     
 // Reading magic number from current position of ifstream
-int read_magic_number(std::ifstream& infile, int bytes = 4) {
+int read_magic_number(std::ifstream& ifile, int bytes = 4) {
     int m;
     char buffer[bytes];
-    infile.read(buffer, bytes);
+    ifile.read(buffer, bytes);
     memcpy(&m, &buffer, bytes);
     return m;
 }
@@ -31,23 +31,37 @@ void write_string(std::ofstream& ofile, const std::string& val, const int bytes)
 }
 
 // Reading std::string of length nchar from ifstream
-std::string read_string(std::ifstream& infile, const int nchar) {
+std::string read_string(std::ifstream& ifile, const int nchar) {
     std::string result(nchar, '\0'); // Create string with 'nchar' chars
-    infile.read(&result[0], nchar);
+    ifile.read(&result[0], nchar);
     return result;
 }
 
-void write_int(std::ofstream& ofile, int val, int bytes = 4) {
-    ofile.write(reinterpret_cast<const char*>(&val), bytes);
+void write_double(std::ofstream& ofile, double val) {
+    ofile.write(reinterpret_cast<const char*>(&val), sizeof(val));
 }
 
-int read_int(std::ifstream& infile, int bytes = 4) {
-    char buffer[bytes];
-    int res;
-    infile.read(buffer, bytes);
-    memcpy(&res, &buffer, bytes);
+double read_double(std::ifstream& ifile) {
+    double res;
+    ifile.read(reinterpret_cast<char*>(&res), sizeof(res));
     return res;
 }
+
+
+void write_int(std::ofstream& ofile, int val) {
+    ofile.write(reinterpret_cast<const char*>(&val), sizeof(int));
+}
+
+int read_int(std::ifstream& ifile) {
+    int res;
+    ifile.read(reinterpret_cast<char*>(&res), sizeof(res));
+    return res;
+}
+
+
+
+
+// -------------------------------------------------------------------
 
 // [[Rcpp::export]]
 Rcpp::List create_binmm(std::string file,
@@ -57,8 +71,7 @@ Rcpp::List create_binmm(std::string file,
                         char sep = ',', bool verbose = true) {
 
     int ncol = 0, nrow = 0, nchar;
-    int bytes_dbl = 8, nchar_colnames = 0, nchar_file;
-    int bytes_colnames = 4; // We'll take bytes_colnames * nchar_colnames later;
+    int nchar_file;
     int nchar_filename = file.size(); // Number of character of input file name
     std::string line;
     std::string val;
@@ -116,19 +129,10 @@ Rcpp::List create_binmm(std::string file,
     write_int(ofile, ncol);       // ncol
     write_int(ofile, nchar_filename); // Length of original file name
     write_string(ofile, file.c_str(), nchar_filename); // Original file name
-    ofile.write(reinterpret_cast<const char*>(file.c_str()), bytes_dbl);
     
-    // Creating colnames vector (length ncol) and fill.
+    // Creating vector for column names as well as for the length
+    // of the colnames (number of characters of each name).
     CharacterVector colnames(ncol);
-
-    // Creating numeric vectors to store row sums and
-    // squared row sums to calculate mean and standard deviation (sd).
-    // We could re-use some of them, but they are fairly small
-    // (numeric vectors of length ncol).
-    NumericVector xsum        = rep(0.0, ncol);
-    NumericVector xsumsquared = rep(0.0, ncol);
-    NumericVector mean        = rep(0.0, ncol);
-    NumericVector sd          = rep(0.0, ncol);
 
     // Extracting header information
     if (header) {
@@ -151,19 +155,26 @@ Rcpp::List create_binmm(std::string file,
         }
         // Revert to first line as the first line (we already used
         // once to count number of columns) as a data line.
-        Rcout << "[cpp] Revert line\n";
+        if (verbose) Rcout << "[cpp] Revert line\n";
         ifile.seekg(line1);
     }
 
     // Store number of characters for longest colname; used
     // for byte length for binary writing/reading later.
-    for (int i = 0; i < ncol; i++) {
-        nchar = colnames[i].size();
-        if (nchar > nchar_colnames) nchar_colnames = nchar;
-        bytes_colnames = bytes_colnames * nchar_colnames;
-    }
-    if (verbose) Rcout << "[cpp] Longest colname (nchar): " << nchar << "\n";
-    if (verbose) Rcout << "[cpp] Bytes used for colnames: " << bytes_colnames << "\n";
+    if (verbose) Rcout << "[cpp] Writing length and content of column names\n";
+    for (int i = 0; i < ncol; i++)
+        write_int(ofile, colnames[i].size());
+    for (int i = 0; i < ncol; i++)
+        write_string(ofile, Rcpp::as<std::string>(colnames[i]), colnames[i].size());
+
+    // Creating numeric vectors to store row sums and
+    // squared row sums to calculate mean and standard deviation (sd).
+    // We could re-use some of them, but they are fairly small
+    // (numeric vectors of length ncol).
+    NumericVector xsum        = rep(0.0, ncol);
+    NumericVector xsumsquared = rep(0.0, ncol);
+    NumericVector mean        = rep(0.0, ncol);
+    NumericVector sd          = rep(0.0, ncol);
 
     // Reading data; read line by line until we find EOF.
     // At the same time we calculate the row sums and
@@ -179,7 +190,7 @@ Rcpp::List create_binmm(std::string file,
         for (int i = 0; i < ncol; i++) {
             std::getline(iss, val, ',');
             x = std::stod(val);
-            ofile.write(reinterpret_cast<const char*>(&x), bytes_dbl);
+            write_double(ofile, x);
             xsum[i]        = xsum[i] + x;
             xsumsquared[i] = xsumsquared[i] + x * x;
         }
@@ -230,22 +241,27 @@ Rcpp::List create_binmm(std::string file,
 
 
 // [[Rcpp::export]]
-Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true) {
+Rcpp::List subset_binmm(std::string file, int nrow, int ncol,
+                        Rcpp::IntegerVector& ii,
+                        Rcpp::IntegerVector& jj,
+                        bool verbose = true) {
 
+
+    Rcout << "ii = " << ii << "\n";
+    Rcout << "jj = " << jj << "\n";
     if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << "\n";
 
-    int bytes_dbl = 8, counter = 0;
+    int i, j, counter = 0;
     int nrow_total, ncol_total, nchar_filename;
 
     double y;
-    char buffer[bytes_dbl];
 
     
     if (verbose) Rcout << "Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
 
     // Open input file connection (binary)
-    std::ifstream infile(file.c_str(), ios::in | std::ios::binary);
-    if (!infile) {
+    std::ifstream ifile(file.c_str(), ios::in | std::ios::binary);
+    if (!ifile) {
         stop("Whoops, input file not found/problem to open stream.");
     }
 
@@ -253,83 +269,70 @@ Rcpp::List meta_binmm(std::string file, int nrow, int ncol, bool verbose = true)
     // - magic_number: 4 byte int
     // - file_name_bytes: 4 byte int
     // - ncol: 4 byte int
-    int magic_number = read_magic_number(infile);
+    int magic_number = read_magic_number(ifile);
     if (magic_number != my_magic_number())
         stop("Wrong magic number; content of binary file not what is expected");
     Rcout << "[cpp] Got magic number " << magic_number << "\n";
 
-    nrow_total    = read_int(infile);
-    ncol_total    = read_int(infile);
+    nrow_total    = read_int(ifile);
+    ncol_total    = read_int(ifile);
     Rcout << "[cpp] Total dim: " << nrow_total << " x " << ncol_total << "\n";
 
-    nchar_filename = read_int(infile);
-    std::string original_file = read_string(infile, nchar_filename);
+    nchar_filename = read_int(ifile);
+    std::string original_file = read_string(ifile, nchar_filename);
 
     Rcout << "[cpp] Original file: " << original_file << " (" << nchar_filename << ")\n";
 
+    // Reading column names
+    // First nchar of each of the colum names, then string (name)
+    IntegerVector nchar_colnames = rep(-9, ncol);
+    CharacterVector colnames(ncol);
+    for (j = 0; j < ncol; j++)
+        nchar_colnames[j] = read_int(ifile);
+    for (j = 0; j < ncol; j++)
+        colnames[j] = read_string(ifile, nchar_colnames[j]);
     
 
+    // Create numeric matrix of the dimension requested
+    // by the user; loop over i/j indices (0 based) and
+    // read the data.
+    // Sets pointers to jump to the value of interest
+    // (long stream of doubles).
+    NumericMatrix rmat(ii.size(), jj.size());
 
-    IntegerVector res = rep(9, 2);
-    return Rcpp::List::create(Named("dummy"), res);
+    // Appending dimension names
+    CharacterVector rmat_colnames(ii.size());
+    for (j =  0; j < jj.size(); ++j) rmat_colnames[j] = colnames[jj[j]];
+    rmat.attr("dimnames") = Rcpp::List::create(R_NilValue, rmat_colnames);
 
-    NumericMatrix rmat(nrow, ncol);
 
     counter = 0;
-    for (int i = 0; i < nrow; i++) {
-        for (int j = 0; j < ncol; j++) {
-            counter++;
-            infile.read(buffer, bytes_dbl);
-            memcpy(&y, buffer, bytes_dbl);
-            rmat(i, j) = y;
+
+    std::streampos data_pos0 = ifile.tellg(); // Pointer position start of data
+    Rcout << "start positon  " << data_pos0 << "\n";
+    Rcout << "ii = " << ii << " (len = " << ii.size() << ")\n";
+    Rcout << "jj = " << jj << " (len = " << jj.size() << ")\n";
+
+    int pos;
+    double val;
+    for (i = 0; i < ii.size(); ++i) {
+        for (j = 0; j < jj.size(); ++j) {
+            // Calculate pointer position
+            pos = data_pos0 + ((ii[i] * ncol) + jj[j]) * sizeof(val);
+            // Setting pointer; read and store double
+            ifile.seekg(pos);
+            rmat(i, j) = read_double(ifile);
         }
     }
 
     if (verbose) Rcout << "[cpp] Closing file connection\n";
-
-    infile.close();
-
-    // Dummy return
-    return Rcpp::List::create(Named("data") = rmat);
-}
-
-
-
-
-
-// [[Rcpp::export]]
-Rcpp::List read_binMatFull(std::string file, int nrow, int ncol, bool verbose = true) {
-
-    if (verbose) Rcout << "[cpp] Reading file " << file.c_str() << "\n";
-
-    int bytes_dbl = 8, counter = 0;
-    double y;
-    char buffer[bytes_dbl];
-    
-    if (verbose) Rcout << "[cpp] Dimension of object to read/return: " << nrow << "x" << ncol << "\n";
-
-    NumericMatrix rmat(nrow, ncol);
-
-    // Open input file connection (binary)
-    std::ifstream myfile(file.c_str(), ios::in | std::ios::binary);
-    if (!myfile) {
-        stop("Whoops, input file not found/problem to open stream.");
-    }
-
-    counter = 0;
-    for (int i = 0; i < nrow; i++) {
-        for (int j = 0; j < ncol; j++) {
-            counter++;
-            myfile.read(buffer, bytes_dbl);
-            memcpy(&y, buffer, bytes_dbl);
-            rmat(i, j) = y;
-        }
-    }
-
-    if (verbose) Rcout << "[cpp] Closing file connection\n";
-
-    myfile.close();
+    ifile.close();
 
     // Dummy return
-    return Rcpp::List::create(Named("data") = rmat);
+    return Rcpp::List::create(
+            Named("colnames") = colnames,
+            Named("dim") = Rcpp::List::create(Named("nrow") = nrow, Named("ncol") = ncol),
+            Named("filename") = original_file,
+            Named("data") = rmat);
 }
+
