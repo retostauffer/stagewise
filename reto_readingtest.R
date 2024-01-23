@@ -34,12 +34,12 @@ library("devtools")
 load_all("sdr")
 
 cat("Using binmm. Deleting binary file if it already exists for testing purposes!")
-binfile <- paste(gsub("\\.\\w{0,3}$", "", csvfile), "binmm", sep = ".")
+(binfile <- paste("_readingtest_", gsub("\\.\\w{0,3}$", "", csvfile), "binmm", sep = "."))
 if (file.exists(binfile)) file.remove(binfile)
 
 cat("\n\nCreating binmm first ... measuring time\n")
 t <- Sys.time()
-data <- read.binmm(csvfile, skip = 4)
+data <- read.binmm(csvfile, binfile = binfile, skip = 4)
 t <- as.numeric(Sys.time() - t, units = "mins")
 cat("\n\nCreating the binary binmm file took ", round(t, 2), " minutes\n")
 
