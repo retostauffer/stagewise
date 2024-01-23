@@ -6,7 +6,7 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --output=slurm-%x-%j_%a.out
 #SBATCH --error=slurm-%x-%j_%a.err
-#SBATCH --time=0:30:00
+#SBATCH --time=5:00:00
 #SBATCH --mem-per-cpu=2G
 
 # Must be started outside this folder! Checking if the
@@ -26,6 +26,6 @@ export SINGULARITY_BIND="/home/c403/c4031021/stagewise:/stagewise"
 # Call singularity
 singularity exec ${SIF} /bin/bash <<-EOF
 cd /stagewise && \
-Rscript reto_cpp.R -m 10 -n 1000000 -p 1000
+Rscript reto_cpp.R -m 200 -n 100000 -p 1000 -b 10000
 EOF
 
