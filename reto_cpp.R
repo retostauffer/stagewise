@@ -53,7 +53,6 @@ cat("Building formula now ...\n")
 vars <- data$colnames[!data$colnames == "y"]
 f <- list(paste0("y ~", paste(vars, collapse = " + ")),
           paste0("sigma ~", paste(vars, collapse = " + ")))
-print(f)
 
 ## Variable selection with correlation filtering
 ## and best subset updating.
