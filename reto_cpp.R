@@ -4,7 +4,7 @@ library("argparse")
 parser <- ArgumentParser("Allows console args for testing")
 parser$add_argument("-b", "--batchsize", type = "integer", default = 100,
                     help = "Size of the batch; if < 100 it takes nobs / batchsize!")
-parser$add_argument("-m", "--maxit", type = "integer", default = 10,
+parser$add_argument("-m", "--maxit", type = "integer", default = 100,
                     help = "Number of iterations, defaults to 10")
 parser$add_argument("-n", "--nobs", type = "integer", default = 1e5,
                     help = "Number of observations, defaults to 1e5")
@@ -33,11 +33,18 @@ stopifnot("file does not exist" = file.exists(csvfile))
 library("devtools")
 load_all("sdr")
 
-cat("Using read.retoMat to connect to file\n")
-t <- Sys.time()
-data <- read.retoMat(csvfile, skip = 4)
-t <- as.numeric(Sys.time() - t, units = "mins")
-cat("\n\nInitial reading (retoMat) took ", round(t, 2), " minutes\n")
+cat("Using binmm. If the binary file exists, we take the binary file.\n")
+cat("Else we have to create that binary version first.\n")
+binfile <- paste(gsub("\\.\\w{0,3}$", "", csvfile), "binmm", sep = ".")
+if (!file.exists(binfile)) {
+    cat("Must create binmm first ... measuring time\n")
+    t <- Sys.time()
+    data <- read.binmm(csvfile, skip = 4)
+    t <- as.numeric(Sys.time() - t, units = "mins")
+    cat("\n\nCreating the binary binmm file took ", round(t, 2), " minutes\n")
+} else {
+    data <- read.binmm(binfile)
+}
 
 print(data[1:5, 1:5])
 
@@ -65,6 +72,9 @@ pk <- peakRAM({
 })
 t <- as.numeric(Sys.time() - t, units = "mins")
 cat("\n\nFull estimation took me ", round(t, 2), " minutes in total\n")
+pdf(file = "_reto_cpp.pdf", width = 15, height = 15)
+    plot(b)
+dev.off()
 
 cat("\n\n")
 print(pk)
